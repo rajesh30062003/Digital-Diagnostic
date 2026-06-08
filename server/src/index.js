@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+
 import authRouter from "./routes/auth.js";
 import testsRouter from "./routes/tests.js";
 import packagesRouter from "./routes/packages.js";
@@ -19,11 +20,34 @@ import doctorSlotsRouter from "./routes/doctor-slots.js";
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/digital-diagnostic";
 
-app.use(cors());
+const MONGODB_URI =
+  process.env.MONGODB_URI ||
+  "mongodb://localhost:27017/digital-diagnostic";
+
+// CORS
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://digital-diagnostic.vercel.app",
+    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
+
+app.options("*", cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Debug middleware
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // Routes
 app.use("/api/auth", authRouter);
@@ -42,13 +66,18 @@ app.use("/api/contacts", contactsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/doctor-slots", doctorSlotsRouter);
 
-app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
 
 mongoose
   .connect(MONGODB_URI)
   .then(() => {
     console.log("Connected to MongoDB");
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   })
   .catch((err) => {
     console.error("MongoDB connection error:", err);
