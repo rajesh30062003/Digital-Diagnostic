@@ -12,24 +12,42 @@ const safeUser = (u) => {
   return rest;
 };
 
-router.post("/register", async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
-    const { name, email, password, phone, role } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).json({ error: "name, email, password required" });
+    console.log("LOGIN START");
 
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ error: "Email already in use" });
+    const { email, password } = req.body;
+    console.log("EMAIL:", email);
 
-    const hashed = await bcrypt.hash(password, 10);
-    const validRole = ["patient", "doctor", "admin"].includes(role) ? role : "patient";
-    const user = await User.create({ name, email, password: hashed, phone, role: validRole });
+    const user = await User.findOne({ email });
+    console.log("USER:", !!user);
 
-    const token = generateToken({ id: user._id.toString(), role: user.role, email: user.email });
-    res.status(201).json({ token, user: safeUser(user) });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    console.log("MATCH:", match);
+
+    if (!match) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = generateToken({
+      id: user._id.toString(),
+      role: user.role,
+      email: user.email,
+    });
+
+    console.log("TOKEN CREATED");
+
+    return res.json({
+      token,
+      user: safeUser(user),
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("LOGIN ERROR:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
