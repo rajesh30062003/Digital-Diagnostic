@@ -35,7 +35,8 @@ app.use(
   })
 );
 
-app.options("*", cors());
+// Handle preflight requests
+app.options(/.*/, cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -66,7 +67,12 @@ app.use("/api/doctor-slots", doctorSlotsRouter);
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
-
+app.get("/api/cors-test", (req, res) => {
+  res.json({
+    success: true,
+    origin: req.headers.origin || null,
+  });
+});
 mongoose
   .connect(MONGODB_URI)
   .then(() => {
