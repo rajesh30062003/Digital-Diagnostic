@@ -19,11 +19,17 @@ import dashboardRouter from "./routes/dashboard.js";
 import doctorSlotsRouter from "./routes/doctor-slots.js";
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 10000;
 
 const MONGODB_URI =
   process.env.MONGODB_URI ||
   "mongodb://localhost:27017/digital-diagnostic";
+
+// Request logger
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // CORS
 const allowedOrigins = [
@@ -33,13 +39,17 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+    console.log("Origin:", origin);
+
+    if (!origin) {
+      return callback(null, true);
+    }
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    callback(null, false);
+    return callback(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -48,16 +58,29 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Handle preflight requests
-app.options(/.*/, cors(corsOptions));
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Debug middleware
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.originalUrl}`);
-  next();
+// Root route
+app.get("/", (req, res) => {
+  res.status(200).send("Digital Diagnostic API Running");
+});
+
+// Health route
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    status: "ok",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// CORS test route
+app.get("/api/cors-test", (req, res) => {
+  res.status(200).json({
+    success: true,
+    origin: req.headers.origin || null,
+  });
 });
 
 // Routes
@@ -77,21 +100,31 @@ app.use("/api/contacts", contactsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/doctor-slots", doctorSlotsRouter);
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
-});
-app.get("/api/cors-test", (req, res) => {
-  res.json({
-    success: true,
-    origin: req.headers.origin || null,
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
   });
 });
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error("SERVER ERROR:", err);
+
+  res.status(500).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+  });
+});
+
+// MongoDB connection
 mongoose
   .connect(MONGODB_URI)
   .then(() => {
     console.log("Connected to MongoDB");
 
-    app.listen(PORT, () => {
+    app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
     });
   })
