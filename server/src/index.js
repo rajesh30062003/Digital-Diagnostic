@@ -26,17 +26,29 @@ const MONGODB_URI =
   "mongodb://localhost:27017/digital-diagnostic";
 
 // CORS
+const allowedOrigins = [
+  "https://digital-diagnostic.vercel.app",
+  "http://localhost:5173",
+];
+
 app.use(
   cors({
-    origin: true,
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Handle preflight requests
-app.options(/.*/, cors());
+app.options("*", cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
